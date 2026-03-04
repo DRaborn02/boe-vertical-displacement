@@ -1,7 +1,7 @@
 # boe-step-4-vertical-displacement
 
 Include this pre-trained u-net model 'unet_membrane.hdf5' in the root of this project: 
-https://drive.google.com/file/d/1zs7zW7ksnStm4texstoau7xsHrut8YvX/view?usp=sharing
+https://drive.google.com/file/d/1Kjf2_7WaVH_Xq6RZ08otZ8j5BE6068cF/view?usp=drive_link
 
 We recommend the following versions for the required dependencies in your virtual environment or anaconda environment:
 - Python 3.10
