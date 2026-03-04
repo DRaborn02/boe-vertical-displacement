@@ -1,10 +1,12 @@
 import os
 import numpy as np
 import pandas as pd
+import cv2
+import json
 from PIL import Image
 from scipy.ndimage import label
 
-def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv):
+def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv, debug=False):
     """
     Calculate vertical displacement for each crack using normalized elevation values.
     - Find left and right edges of the crack.
@@ -14,14 +16,25 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     predicted_img = Image.open(predicted_path).convert("L")
     predicted_array = np.array(predicted_img)
 
-    # Load DEM elevation image (grayscale, where the pixel values represent heights)
-    dem_img = Image.open(dem_path).convert("L")
-    dem_array = np.array(dem_img)
+    dem_dir = os.path.dirname(dem_path)
+    parent = os.path.dirname(dem_dir)
+    meta_path = os.path.join(parent, os.path.basename(parent) + "_meta.json")
+    meta = json.load(open(meta_path))
 
-    # Normalize DEM elevation values (convert pixel values to real-world meters)
-    min_elevation = 0  # Minimum real-world elevation (meters)
-    max_elevation = 0.0254  # Maximum real-world elevation (meters, 4 inches)
-    elevation_data = (dem_array / 255) * (max_elevation - min_elevation) + min_elevation
+    # Load DEM elevation image (grayscale, where the pixel values represent heights)
+    dem_bits = meta.get("dem_bits", 8)
+    if dem_bits == 16 or dem_path.lower().endswith('.png'):
+        dem_img = Image.open(dem_path)
+        dem_array = np.array(dem_img, dtype=np.uint16)
+        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 65535.0) * (max_elevation - min_elevation) + min_elevation
+    else:
+        dem_img = Image.open(dem_path).convert("L")
+        dem_array = np.array(dem_img)
+        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 255.0) * (max_elevation - min_elevation) + min_elevation
 
     # Load CSV mask (binary joint mask, 1 = joint, 0 = background)
     csv_data = pd.read_csv(csv_path, header=None).values  # Load as NumPy array
@@ -92,7 +105,7 @@ def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_fol
             seg_path = os.path.join(seg_folder, seg_filename)
 
             # Generate corresponding file paths
-            dem_path = os.path.join(dem_folder, seg_filename.replace("SEG.jpg", "DEM.jpg"))
+            dem_path = os.path.join(dem_folder, seg_filename.replace("SEG.jpg", "DEM.png"))
             csv_path = os.path.join(csv_folder, seg_filename.replace("SEG.jpg", "MASK.csv"))
             output_csv = os.path.join(output_folder, seg_filename.replace("SEG.jpg", "VERT_DISP.csv"))
 

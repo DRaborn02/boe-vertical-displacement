@@ -6,6 +6,7 @@
 # Major updata : Automatically align point cloud to a plane surface
 import copy
 import gc
+import json
 import math
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -375,17 +376,29 @@ def main2(glb_file_path,pointName='5mm_18_34_56',downsample=10,GSDmm2px=5,bool_a
     if b=='server':
         grid_RGB,grid_ele,(ele_min,ele_max)=PointCloud2Orthoimage2(np.array(points),np.asarray(colors)*65535,downsample=downsample,GSDmm2px=GSDmm2px)  #PointCloud2Orthoimage(PCD,downsample=0,GSDmm2px=5)
     grid_RGB=(grid_RGB/(2**16-1)*255).astype('uint8')
-    grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
-    #if grid_ele.shape[0]>grid_ele.shape[1]:# alway keep width larger than height
-    #    grid_ele=rotate(grid_ele,90)
-    #    grid_RGB=rotate(grid_RGB,90)
+    # Output DEM as 8-bit grayscale
+    # grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
+    
+    # Output DEM as 16-bit grayscale
+    grid_map_16 = ((grid_ele-ele_min)/(ele_max-ele_min)*(2**16-1)).astype('uint16')
+    grid_map_16 = cv.medianBlur(grid_map_16, 5) # Apply median blur 5x5 to reduce noise in DEM
     try:
-        return grid_RGB,grid_ele,grid_map,(ele_min,ele_max),GSDmm2px
+        return grid_RGB,grid_ele,grid_map_16,(ele_min,ele_max),GSDmm2px
     finally:
-        newdir(glb_file_path+'/Demo/'+pointName+'/')
+        demo_dir = os.path.join(glb_file_path, 'Demo', pointName)
+        newdir(demo_dir)
+
         cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'RGB.jpg',cv.cvtColor(grid_RGB,cv.COLOR_RGB2BGR),[int(cv.IMWRITE_JPEG_QUALITY),100])
-        cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'DEM.jpg',grid_map,[int(cv.IMWRITE_JPEG_QUALITY),100])
-        print('[Done]',glb_file_path+'/Demo/'+pointName+'/'+pointName+'RGB/DEM.jpg')
+        # Save DEM as 8-bit JPEG
+        # cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'DEM.jpg',grid_map,[int(cv.IMWRITE_JPEG_QUALITY),100])
+
+        # Save DEM as 16-bit PNG
+        cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'DEM.png',grid_map_16)
+        meta = {"ele_min": float(ele_min), "ele_max": float(ele_max), "dem_bits": 16}
+        with open(os.path.join(demo_dir, pointName + '_meta.json'), 'w') as jf:
+            json.dump(meta, jf)
+
+        print('[Done]',glb_file_path+'/Demo/'+pointName+'/'+pointName+'RGB/DEM.png')
         try:
             del PCD,point_cloud,points,colors,pcd_t,pcd_r
         except:

@@ -43,8 +43,9 @@ def main(base_path,sidewalk_name):
     labeled_rgb_with_measurements_path = os.path.join(results_path, "labeled_rgb") # a folder path containing all the cut RGB pictures with elevation measurements edited
     os.makedirs(labeled_rgb_with_measurements_path, exist_ok=True)
 
-    # 2am things
-    original_dem_path = sidewalk_path + "/" + sidewalk_name +"DEM.jpg"
+    # Input paths
+    # original_dem_path = sidewalk_path + "/" + sidewalk_name +"DEM.JPG"
+    original_dem_path = sidewalk_path + "/" + sidewalk_name +"DEM.png"
     original_RGB_path = sidewalk_path + "/" + sidewalk_name +"RGB.jpg"  # Path to the image you want to test
 
     sidewalk_output_folder_rgb = sidewalk_path + "/resized_rgb/" # for rgb
@@ -107,7 +108,7 @@ def main(base_path,sidewalk_name):
 # Run this entire program by running python main.py 
 if __name__ == "__main__":
     
-    base_path = "/Users/jose/pointcloud_files/" # only change thiss
+    base_path = "/Users/Lunar/pointcloud_files/" # only change thiss
     p2o_main(base_path)
     base_path = os.path.join(base_path, "Demo")
     

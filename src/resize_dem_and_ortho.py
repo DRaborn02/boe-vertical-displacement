@@ -23,7 +23,7 @@ def split_dem_image(input_image_path, output_folder, patch_size=256):
                     patch = patch.resize((patch_size, patch_size), Image.LANCZOS)
                 
                 # Save patches with continuous numbering
-                output_path = os.path.join(output_folder, f"{patch_idx}DEM.jpg")
+                output_path = os.path.join(output_folder, f"{patch_idx}DEM.png")
                 patch.save(output_path)
                 print(f"Saved: {output_path}")
                 patch_idx += 1
