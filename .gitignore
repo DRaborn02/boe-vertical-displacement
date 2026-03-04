@@ -1,3 +1,5 @@
 unet_membrane.hdf5
 ipynb_files/
 .ipynb_checkpoints/
+.venv/
+venv/
