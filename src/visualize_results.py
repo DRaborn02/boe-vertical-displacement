@@ -47,7 +47,7 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
 
         if not displacement_row.empty:
             displacement = displacement_row['vertical_displacement'].values[0]
-            if displacement >= 0.003: # check if we should display it
+            if displacement >= 0.002: # check if we should display it
                 
 
                 centroid_y = np.mean(crack_positions[:, 0])
@@ -71,10 +71,44 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
                     centroid_y = img_h - margin
                 
                 plt.text(centroid_x, centroid_y, f"{displacement*1000:.3f}mm", color='blue', fontsize=25, rotation=angle, rotation_mode='anchor', clip_on=True)
+
+                horizontal_disp = None
+                if 'horizontal_displacement' in displacement_row.columns:
+                    horizontal_disp = displacement_row['horizontal_displacement'].values[0]
+
+                # Draw horizontal displacement as a line at the bottom of the crack
+                if horizontal_disp is not None:
+                    # Find the bottom-most y of the crack
+                    bottom_y = np.max(crack_positions[:, 0])
+                    # Get all x at this y (bottom row of crack)
+                    x_at_bottom = crack_positions[crack_positions[:, 0] == bottom_y, 1]
+                    if len(x_at_bottom) == 0:
+                        # fallback: use all x
+                        x_at_bottom = crack_positions[:, 1]
+                    left_x = np.min(x_at_bottom)
+                    right_x = np.max(x_at_bottom)
+                    # Clamp to image bounds
+                    if left_x < margin:
+                        left_x = margin
+                    if right_x > img_w - margin:
+                        right_x = img_w - margin
+                    if bottom_y > img_h - margin:
+                        bottom_y = img_h - margin
+                    # Draw the horizontal line
+                    plt.plot([left_x, right_x], [bottom_y, bottom_y], color='blue', linewidth=3)
+                    # Place the label below the line
+                    label_y = bottom_y + 12  # 12 pixels below
+                    if label_y > img_h - margin:
+                        label_y = img_h - margin
+                    label_x = (left_x + right_x) / 2
+                    plt.text(label_x, label_y, f"{horizontal_disp:.2f}mm", color='blue', fontsize=18, ha='center', va='top', rotation=0, clip_on=True)
+
             if displacement >= 0.013:
                 plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c='red', s=5, label=f"Crack {crack_label}")
-            elif displacement >= 0.003:
+            elif displacement >= 0.002:
                 plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c=color, s=5, label=f"Crack {crack_label}")
+            
+
             
 
     plt.xticks([])

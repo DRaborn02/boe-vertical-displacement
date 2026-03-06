@@ -46,7 +46,7 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     # Step 1: Use connected component labeling to group adjacent 1s into cracks
     labeled_array, num_features = label(csv_data)  # Find connected regions of 1s (cracks)
 
-    # List to store vertical displacement for each crack
+    # List to store displacement for each crack
     displacements = []
 
     # Iterate over each unique labeled crack region
@@ -84,15 +84,22 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
         # Compute vertical displacement: max(right) - min(left)
         vertical_displacement = max_right_height - min_left_height
 
+        # Calculate horizontal displacement (pixel length of crack mask)
+        crack_xs = crack_positions[:, 1]
+        min_x = np.min(crack_xs)
+        max_x = np.max(crack_xs)
+        pixel_length = max_x - min_x + 1
+        horizontal_displacement = pixel_length * 0.5  # Each pixel is 0.5mm
+
         # Store result for this crack
-        displacements.append([crack_label, vertical_displacement])
+        displacements.append([crack_label, vertical_displacement, horizontal_displacement])
 
     # Convert to DataFrame and save results
-    df_displacements = pd.DataFrame(displacements, columns=["crack_label", "vertical_displacement"])
+    df_displacements = pd.DataFrame(displacements, columns=["crack_label", "vertical_displacement", "horizontal_displacement"])
     df_displacements.to_csv(output_csv, index=False)
 
     print(f"Processed {len(displacements)} cracks.")
-    print(f"Saved vertical displacement data to {output_csv}")
+    print(f"Saved displacement data to {output_csv}")
 
 
 def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_folder):
