@@ -17,12 +17,9 @@ def load_data_testing(img_path, img_size):
         print(f"Error loading image {img_path}: {e}")
         return None, None
 
-def test_model(model_path, img_path, img_size, output_path):
-    """Load the model, test on an input image, and visualize the result."""
+def test_model(model, img_path, img_size, output_path):
+    """Test on an input image using a pre-loaded model and visualize the result."""
     try:
-        print(f"Loading model from {model_path}")  # Debug print
-        model = load_model(model_path)
-
         print(f"Loading image: {img_path}")  # Debug print
         img_array, original_img = load_data_testing(img_path, img_size)
         if img_array is None:
@@ -38,9 +35,19 @@ def test_model(model_path, img_path, img_size, output_path):
 
         print(f"Saving prediction to {output_path}")  # Debug print
         predicted_img = Image.fromarray(pred_mask, mode="L")  # Ensure grayscale format
-        os.makedirs(os.path.dirname(output_path), exist_ok=True) 
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
         predicted_img.save(output_path)
         print(f"Prediction image saved at: {output_path}")
+
+        # Explicitly close PIL images to free resources
+        if hasattr(predicted_img, 'close'):
+            predicted_img.close()
+        if hasattr(original_img, 'close'):
+            original_img.close()
+
+        # Explicitly delete large variables to free memory
+        del img_array, original_img, prediction, pred_mask, predicted_img
 
     except Exception as e:
         print(f"Error in test_model: {e}")
@@ -70,15 +77,27 @@ def process_segmentation(pretrained_model_path, sidewalk_output_folder_rgb, img_
 
     print(f"Found {len(all_rgb_images)} images in {sidewalk_output_folder_rgb}")  # Debug print
 
+    # Load the model only once
+    print(f"Loading model from {pretrained_model_path}")
+    model = load_model(pretrained_model_path)
+
     for img_filename in all_rgb_images:
         img_path = os.path.join(sidewalk_output_folder_rgb, img_filename)
 
-        # Naming: RGB.jpg → SEG.png
+        # Naming: RGB.jpg → SEG.jpg
         output_filename = img_filename.replace("RGB.jpg", "SEG.jpg")
         output_path = os.path.join(predicted_output_folder, output_filename)
 
-        print(f"Processing: {img_filename} -> {output_filename}")  # Debug print
-        test_model(pretrained_model_path, img_path, img_size, output_path)
+        # Skip if output already exists
+        if os.path.exists(output_path):
+            print(f"Skipping {output_filename} (already exists)")
+            continue
 
-        """Remove the '#' to see the results, but keeping it can speed up the process"""
+        print(f"Processing: {img_filename} -> {output_filename}")  # Debug print
+        test_model(model, img_path, img_size, output_path)
+
+        # Explicitly clear Keras session if needed (uncomment if memory issues persist)
+        from tensorflow.keras import backend as K
+        K.clear_session()
+
         #display_predicted_image(img_path, output_path)

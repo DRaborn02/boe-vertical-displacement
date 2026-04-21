@@ -39,4 +39,9 @@ def convert_all_masks(predicted_output_folder, binary_mask_csv_folder):
         csv_filename = mask_filename.replace("SEG.jpg", "MASK.csv")
         csv_output_path = os.path.join(binary_mask_csv_folder, csv_filename)
 
+        # Skip if output already exists
+        if os.path.exists(csv_output_path):
+            print(f"Skipping {csv_output_path} (already exists)")
+            continue
+
         image_to_csv(mask_path, csv_output_path)

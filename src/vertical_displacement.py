@@ -89,7 +89,7 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
         min_x = np.min(crack_xs)
         max_x = np.max(crack_xs)
         pixel_length = max_x - min_x + 1
-        horizontal_displacement = pixel_length * 0.5  # Each pixel is 0.5mm
+        horizontal_displacement = pixel_length * 1.0  # Each pixel is 1mm
 
         # Store result for this crack
         displacements.append([crack_label, vertical_displacement, horizontal_displacement])
@@ -115,6 +115,11 @@ def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_fol
             dem_path = os.path.join(dem_folder, seg_filename.replace("SEG.jpg", "DEM.png"))
             csv_path = os.path.join(csv_folder, seg_filename.replace("SEG.jpg", "MASK.csv"))
             output_csv = os.path.join(output_folder, seg_filename.replace("SEG.jpg", "VERT_DISP.csv"))
+
+            # Skip if output already exists
+            if os.path.exists(output_csv):
+                print(f"Skipping {output_csv} (already exists)")
+                continue
 
             # Compute vertical displacement
             compute_vertical_displacement(seg_path, dem_path, csv_path, output_csv)

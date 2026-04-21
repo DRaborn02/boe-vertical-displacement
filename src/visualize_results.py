@@ -17,7 +17,7 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
         print(f"Error: DEM file not found: {rgb_path}")
         return
 
-    rgb_img = Image.open(rgb_path).convert("L")
+    rgb_img = Image.open(rgb_path).convert("RGB")
     rgb_array = np.array(rgb_img)
 
     if not os.path.exists(csv_path):
@@ -35,7 +35,7 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
     labeled_array, num_features = label(csv_data)
 
     plt.figure(figsize=(10, 8))
-    plt.imshow(rgb_array, cmap="gray", interpolation="none")
+    plt.imshow(rgb_array, interpolation="none")
 
     for crack_label in range(1, num_features + 1):
         crack_mask = (labeled_array == crack_label)
@@ -70,11 +70,14 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
                 elif centroid_y > img_h - margin:
                     centroid_y = img_h - margin
                 
-                plt.text(centroid_x, centroid_y, f"{displacement*1000:.3f}mm", color='blue', fontsize=25, rotation=angle, rotation_mode='anchor', clip_on=True)
+                # plt.text(centroid_x, centroid_y, f"{displacement*1000:.3f}mm", color='blue', fontsize=25, rotation=angle, rotation_mode='anchor', clip_on=True)
 
                 horizontal_disp = None
                 if 'horizontal_displacement' in displacement_row.columns:
                     horizontal_disp = displacement_row['horizontal_displacement'].values[0]
+
+                    #temporary
+                    plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c=color, s=5, label=f"Crack {crack_label}")
 
                 # Draw horizontal displacement as a line at the bottom of the crack
                 if horizontal_disp is not None:
@@ -103,10 +106,16 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
                     label_x = (left_x + right_x) / 2
                     plt.text(label_x, label_y, f"{horizontal_disp:.2f}mm", color='blue', fontsize=18, ha='center', va='top', rotation=0, clip_on=True)
 
-            if displacement >= 0.013:
-                plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c='red', s=5, label=f"Crack {crack_label}")
-            elif displacement >= 0.002:
-                plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c=color, s=5, label=f"Crack {crack_label}")
+                    #temporary
+                    if horizontal_disp >= 13:
+                        plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c='red', s=5, label=f"Crack {crack_label}")
+                    elif horizontal_disp >= 2:
+                        plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c=color, s=5, label=f"Crack {crack_label}")
+            #temporary
+            # if displacement >= 0.013:
+            #     plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c='red', s=5, label=f"Crack {crack_label}")
+            # elif displacement >= 0.002:
+            #     plt.scatter(crack_positions[:, 1], crack_positions[:, 0], c=color, s=5, label=f"Crack {crack_label}")
             
 
             

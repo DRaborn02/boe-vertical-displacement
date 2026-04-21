@@ -441,6 +441,6 @@ def p2o_main(pointcloud_file_path):
         glb_file_path = pcFolderPath  # screenshot saving path
 
         if b == 'win':
-            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=5, bool_alignOnly=0, b=b, bool_generate=0)
+            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=1, bool_alignOnly=0, b=b, bool_generate=0)
         else:
-            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=5, bool_alignOnly=False, b=b)
+            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=1, bool_alignOnly=False, b=b)

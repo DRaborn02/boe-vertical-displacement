@@ -43,6 +43,11 @@ def convert_all_dem_images(dem_folder, output_folder):
             base_name = os.path.splitext(filename)[0]
             output_csv = os.path.join(output_folder, f"{base_name}.csv")
 
+            # Skip if output already exists
+            if os.path.exists(output_csv):
+                print(f"Skipping {output_csv} (already exists)")
+                continue
+
             dem_to_csv(dem_path, output_csv)
 
     print("All DEM images have been converted to CSV.")
