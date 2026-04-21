@@ -99,12 +99,10 @@ def visualize_vertical_displacement(rgb_path, csv_path, displacement_csv_path, r
                         bottom_y = img_h - margin
                     # Draw the horizontal line
                     plt.plot([left_x, right_x], [bottom_y, bottom_y], color='blue', linewidth=3)
-                    # Place the label below the line
-                    label_y = bottom_y + 12  # 12 pixels below
-                    if label_y > img_h - margin:
-                        label_y = img_h - margin
-                    label_x = (left_x + right_x) / 2
-                    plt.text(label_x, label_y, f"{horizontal_disp:.2f}mm", color='blue', fontsize=18, ha='center', va='top', rotation=0, clip_on=True)
+                    # Place the label at the center x, but at the crack's centroid y
+                    label_x = img_w / 2
+                    label_y = centroid_y
+                    plt.text(label_x, label_y, f"{horizontal_disp:.2f}mm", color='blue', fontsize=72, ha='center', va='center', rotation=0, clip_on=True)
 
                     #temporary
                     if horizontal_disp >= 13:
