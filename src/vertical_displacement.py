@@ -17,8 +17,12 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     predicted_array = np.array(predicted_img)
 
     dem_dir = os.path.dirname(dem_path)
-    parent = os.path.dirname(dem_dir)
-    meta_path = os.path.join(parent, os.path.basename(parent) + "_meta.json")
+    vertical_dir = os.path.dirname(dem_dir)  # parent of resized_dem is vertical
+    scan_dir = os.path.dirname(vertical_dir)  # parent of vertical is scan folder
+    scan_name = os.path.basename(scan_dir)
+    meta_path = os.path.join(vertical_dir, scan_name + "_meta.json")
+    if not os.path.exists(meta_path):
+        raise FileNotFoundError(f"Meta file not found at {meta_path}")
     meta = json.load(open(meta_path))
 
     # Load DEM elevation image (grayscale, where the pixel values represent heights)
@@ -46,7 +50,7 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     # Step 1: Use connected component labeling to group adjacent 1s into cracks
     labeled_array, num_features = label(csv_data)  # Find connected regions of 1s (cracks)
 
-    # List to store displacement for each crack
+    # List to store vertical displacement for each crack
     displacements = []
 
     # Iterate over each unique labeled crack region
@@ -84,25 +88,24 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
         # Compute vertical displacement: max(right) - min(left)
         vertical_displacement = max_right_height - min_left_height
 
-        # Calculate horizontal displacement (pixel length of crack mask)
-        crack_xs = crack_positions[:, 1]
-        min_x = np.min(crack_xs)
-        max_x = np.max(crack_xs)
-        pixel_length = max_x - min_x + 1
-        horizontal_displacement = pixel_length * 1.0  # Each pixel is 1mm
-
         # Store result for this crack
-        displacements.append([crack_label, vertical_displacement, horizontal_displacement])
+        displacements.append([crack_label, vertical_displacement])
 
     # Convert to DataFrame and save results
-    df_displacements = pd.DataFrame(displacements, columns=["crack_label", "vertical_displacement", "horizontal_displacement"])
+    df_displacements = pd.DataFrame(displacements, columns=["crack_label", "vertical_displacement"])
     df_displacements.to_csv(output_csv, index=False)
 
     print(f"Processed {len(displacements)} cracks.")
-    print(f"Saved displacement data to {output_csv}")
+    print(f"Saved vertical displacement data to {output_csv}")
 
 
 def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_folder):
+    """
+    seg_folder: folder with segmentation images (e.g., labeled_prediction)
+    dem_folder: folder with DEM tiles (should be resized_dem)
+    csv_folder: folder with MASK.csv files
+    output_folder: where to write VERT_DISP.csv files
+    """
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
@@ -115,11 +118,6 @@ def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_fol
             dem_path = os.path.join(dem_folder, seg_filename.replace("SEG.jpg", "DEM.png"))
             csv_path = os.path.join(csv_folder, seg_filename.replace("SEG.jpg", "MASK.csv"))
             output_csv = os.path.join(output_folder, seg_filename.replace("SEG.jpg", "VERT_DISP.csv"))
-
-            # Skip if output already exists
-            if os.path.exists(output_csv):
-                print(f"Skipping {output_csv} (already exists)")
-                continue
 
             # Compute vertical displacement
             compute_vertical_displacement(seg_path, dem_path, csv_path, output_csv)
