@@ -1,5 +1,8 @@
 unet_membrane.hdf5
+horizontal_unet_membrane.hdf5
+vertical_unet_membrane.hdf5
 ipynb_files/
 .ipynb_checkpoints/
 .venv/
 venv/
+__pycache__/
