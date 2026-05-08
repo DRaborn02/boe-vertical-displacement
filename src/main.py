@@ -30,95 +30,100 @@ def get_image_dimensions(image_path):
         return None, None
 
 
-def main(base_path,sidewalk_name):
-   
-    # Necessary Paths
-    # change this to the desired sidewalk
-    sidewalk_path = os.path.join(base_path, sidewalk_name) # make your sidewalk structure similar to this
+# New function to run the pipeline for a given GSDmm2px and result type
+def run_pipeline(base_path, sidewalk_name, las_file_path, GSDmm2px, result_type):
+    import pointcloud2orthoimage
+    # Use a dedicated subfolder for each pipeline
+    pipeline_folder = os.path.join(base_path, sidewalk_name, result_type.replace('_results', ''))
+    os.makedirs(pipeline_folder, exist_ok=True)
 
-    # Don't change this
-    # Define the results folder path
-    results_path = os.path.join(sidewalk_path, "results")
+    # Run pointcloud2orthoimage with the actual .las file path, outputting to the pipeline folder
+    pointcloud2orthoimage.main2(las_file_path, pointName=sidewalk_name, output_dir=pipeline_folder, GSDmm2px=GSDmm2px, b='win')
+
+    results_path = os.path.join(pipeline_folder, "results")
     os.makedirs(results_path, exist_ok=True)
-    labeled_rgb_with_measurements_path = os.path.join(results_path, "labeled_rgb") # a folder path containing all the cut RGB pictures with elevation measurements edited
+    labeled_rgb_with_measurements_path = os.path.join(results_path, "labeled_rgb")
     os.makedirs(labeled_rgb_with_measurements_path, exist_ok=True)
 
-    # Input paths
-    # original_dem_path = sidewalk_path + "/" + sidewalk_name +"DEM.JPG"
-    original_dem_path = sidewalk_path + "/" + sidewalk_name +"DEM.png"
-    original_RGB_path = sidewalk_path + "/" + sidewalk_name +"RGB.jpg"  # Path to the image you want to test
+    # original_dem_path = os.path.join(pipeline_folder, sidewalk_name + "DEM.png")
+    original_dem_path = os.path.join(pipeline_folder, sidewalk_name + "DEM.jpg")
+    original_RGB_path = os.path.join(pipeline_folder, sidewalk_name + "RGB.jpg")
 
-    sidewalk_output_folder_rgb = sidewalk_path + "/resized_rgb/" # for rgb
-    sidewalk_output_folder_dem = sidewalk_path + "/resized_dem/" # for dem
+    sidewalk_output_folder_rgb = os.path.join(pipeline_folder, "resized_rgb")
+    sidewalk_output_folder_dem = os.path.join(pipeline_folder, "resized_dem")
+    os.makedirs(sidewalk_output_folder_rgb, exist_ok=True)
+    os.makedirs(sidewalk_output_folder_dem, exist_ok=True)
 
-    pretrained_model_path = '../unet_membrane.hdf5'
+    pretrained_horizontal_model_path = '../horizontal_unet_membrane.hdf5'
+    pretrained_vertical_model_path = '../vertical_unet_membrane.hdf5'
+    img_size = 256
 
-    # loop through rgb and dem images, name them by 12345
-    resized_rgb_path = sidewalk_output_folder_rgb
-    resized_dem_path = sidewalk_output_folder_dem # Don't enter original DEM path
-
-    # also this, need to save the predicted image by numbers, predicted_{counter} + png
-    predicted_seg_label_path = sidewalk_path + "/labeled_prediction/" # Need better naming for this
-
-
-    # also this, need multiple csv files, naming should follow 12345
-    binary_mask_csv_path = results_path  # Binary mask CSV
-
-    # same here, naming follow 12345
-    vertical_displacement_csv = results_path # displacement table aka results but in a table
-    img_size = 256  # Set the image size to match the model input
-
-
-    # split the DEM images
-    # You input the DEM or Elevation image, and begins the process of splitting the images. Places in original sidewalk path
     split_dem_image(original_dem_path, sidewalk_output_folder_dem)
-
-    # splits the RGB value
     split_testing_images(original_RGB_path, sidewalk_output_folder_rgb)
 
 
-    # Have the u-net pre-trained model predict the labeled segmentation
-    process_segmentation(pretrained_model_path, sidewalk_output_folder_rgb, img_size, predicted_seg_label_path)
+    # Use the correct model for each pass
+    if result_type == "horizontal_results":
+        process_segmentation(pretrained_horizontal_model_path, sidewalk_output_folder_rgb, img_size, os.path.join(pipeline_folder, "labeled_prediction"))
+    else:
+        process_segmentation(pretrained_vertical_model_path, sidewalk_output_folder_rgb, img_size, os.path.join(pipeline_folder, "labeled_prediction"))
 
-    # Convert image to csv binary mask
+    predicted_seg_label_path = os.path.join(pipeline_folder, "labeled_prediction")
+    binary_mask_csv_path = results_path
+    vertical_displacement_csv = results_path
+
     convert_all_masks(predicted_seg_label_path, binary_mask_csv_path)
+    # Pass the resized_dem folder as dem_folder so DEM lookup works correctly
+    vertical_displacement_looping(predicted_seg_label_path, sidewalk_output_folder_dem, binary_mask_csv_path, vertical_displacement_csv)
 
-    # Actually calculates the displacement in the areas that have segments
-    vertical_displacement_looping(predicted_seg_label_path, resized_dem_path, binary_mask_csv_path, vertical_displacement_csv)
+    # Visualize horizontal or vertical displacement
+    if result_type == "horizontal_results":
+        visualize_looping(sidewalk_output_folder_rgb, binary_mask_csv_path, vertical_displacement_csv, results_path, mode="horizontal")
+    else:
+        visualize_looping(sidewalk_output_folder_rgb, binary_mask_csv_path, vertical_displacement_csv, results_path, mode="vertical")
 
-    # Visualize where the displacement occurs and mark displacement height
-    # should visualize all images and stick them togther
-    visualize_looping(resized_rgb_path, binary_mask_csv_path, vertical_displacement_csv, results_path)
+    elevation_csv = os.path.join(pipeline_folder, "elevation_data")
+    convert_all_dem_images(sidewalk_output_folder_dem, elevation_csv)
 
-    elevation_csv = sidewalk_path + "/elevation_data"
-    convert_all_dem_images(resized_dem_path, elevation_csv)
+    # Look for the correct meta file name (scan_name + '_meta.json')
+    meta_path = os.path.join(pipeline_folder, sidewalk_name + '_meta.json')
+    if not os.path.exists(meta_path):
+        print(f"[Warning] Meta file not found: {meta_path}")
 
-
-    image_path = sidewalk_path + "/" + sidewalk_name + "RGB.jpg"  # Replace with your specific image file path
+    image_path = original_RGB_path
     width, height = get_image_dimensions(image_path)
-    print(f"Width: {width}, Height: {height}")
     reassemble_image(labeled_rgb_with_measurements_path, results_path, width, height)
-    # Move measured sidewalk into a different folder so we don't recalculate in the future
-    
-    measured_sidewalks_folder_path = os.path.dirname(base_path) + "/measured_sidewalks" # remove /demo and append /measured_sidewalks
-    os.makedirs(measured_sidewalks_folder_path, exist_ok=True)
-    shutil.move(sidewalk_path, measured_sidewalks_folder_path)
-    
-    
-# Run this entire program by running python main.py 
-if __name__ == "__main__":
-    
-    base_path = "/Users/Lunar/pointcloud_files/" # only change thiss
-    p2o_main(base_path)
-    base_path = os.path.join(base_path, "Demo")
-    
-    # Get all folder names inside base_path (only directories)
-    all_folders = [f for f in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, f))]
 
-    # Loop through each sidewalk folder and call main with just the folder name
-    for folder in all_folders:
-        print(f"Found sidewalk: {folder}")  # Debugging output
-        main(base_path, folder)
+    # Move to measured_sidewalks/scanName/result_type if needed (optional, not moving now)
+# Run this entire program by running python main.py 
+
+if __name__ == "__main__":
+    base_path = "/Users/Lunar/pointcloud_files/" # only change this
+    demo_path = os.path.join(base_path, "Demo")
+    # Find all .las files in base_path
+    all_las = [os.path.join(base_path, f) for f in os.listdir(base_path) if f.endswith('.las')]
+    print(f"Found {len(all_las)} .las files in {base_path}")
+
+    for las_file_path in all_las:
+        #check to see if results already exist for this scan, if so, skip
+        scan_name = os.path.splitext(os.path.basename(las_file_path))[0]
+        final_scan_folder = os.path.join(base_path, scan_name)
+        if os.path.exists(final_scan_folder):
+            print(f"Results for {scan_name} already exist. Skipping.")
+            continue
+
+        print(f"Processing scan: {scan_name}")
+        scan_folder = os.path.join(demo_path, scan_name)
+        os.makedirs(scan_folder, exist_ok=True)
+        # First pass: vertical
+        run_pipeline(demo_path, scan_name, las_file_path, GSDmm2px=5, result_type="vertical_results")
+        # Second pass: horizontal
+        run_pipeline(demo_path, scan_name, las_file_path, GSDmm2px=1, result_type="horizontal_results")
+
+        #move results to base_path/scanName
+        shutil.move(scan_folder, final_scan_folder)
+        print(f"Finished processing {scan_name}. Results moved to {final_scan_folder}")
+        
 
 
 

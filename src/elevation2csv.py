@@ -10,8 +10,17 @@ def dem_to_csv(dem_path, output_csv, min_elevation=0.0, max_elevation=0.0254):
     Convert a DEM grayscale image to a CSV file containing elevation values in meters.
     """
     dem_dir = os.path.dirname(dem_path)
-    parent = os.path.dirname(dem_dir)
-    meta_path = os.path.join(parent, os.path.basename(parent) + "_meta.json")
+    vertical_dir = os.path.dirname(dem_dir)  # parent of resized_dem is vertical
+    scan_dir = os.path.dirname(vertical_dir)  # parent of vertical is scan folder
+    scan_name = os.path.basename(scan_dir)
+    meta_path = os.path.join(vertical_dir, scan_name + "_meta.json")
+    if not os.path.exists(meta_path):
+        # fallback: try scan_dir (legacy)
+        meta_path_legacy = os.path.join(scan_dir, scan_name + "_meta.json")
+        if os.path.exists(meta_path_legacy):
+            meta_path = meta_path_legacy
+        else:
+            raise FileNotFoundError(f"Meta file not found at {meta_path} or {meta_path_legacy}")
     meta = json.load(open(meta_path))
     min_elevation = meta["ele_min"] / 1000
     max_elevation = meta["ele_max"] / 1000
@@ -42,6 +51,11 @@ def convert_all_dem_images(dem_folder, output_folder):
             dem_path = os.path.join(dem_folder, filename)
             base_name = os.path.splitext(filename)[0]
             output_csv = os.path.join(output_folder, f"{base_name}.csv")
+
+            # Skip if output already exists
+            if os.path.exists(output_csv):
+                print(f"Skipping {output_csv} (already exists)")
+                continue
 
             dem_to_csv(dem_path, output_csv)
 

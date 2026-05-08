@@ -269,14 +269,14 @@ def align_sidewalk_surface(pcd,bool_visualize=False,bool_repeate=True,dist_thres
         finally:
             del pcd,downpcd
 
-def main2(glb_file_path,pointName='5mm_18_34_56',downsample=10,GSDmm2px=5,bool_alignOnly=False,b='win',bool_generate=False):
-    print('$',pointName)
-    bool_confirm=False
-    if b=='win' or b =='mac':
-        #import pptk
+def main2(las_file_path, pointName='5mm_18_34_56', output_dir=None, downsample=10, GSDmm2px=5, bool_alignOnly=False, b='win', bool_generate=False):
+    print('$', pointName)
+    bool_confirm = False
+    if b == 'win' or b == 'mac':
+        # import pptk
         import open3d as o3d
-        axis_mesh=o3d.geometry.TriangleMesh.create_coordinate_frame()  #o3d.geometry.TriangleMesh.create_mesh_coordinate_frame(size=5.0,origin=np.array([0.,0.,0.]))
-        PCD=laspy.read(glb_file_path+pointName+".las")
+        axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()  # o3d.geometry.TriangleMesh.create_mesh_coordinate_frame(size=5.0,origin=np.array([0.,0.,0.]))
+        PCD = laspy.read(las_file_path)
         #region get_the_min_rotated_boundingbox
         point_cloud,points,colors,normals=preparedata(PCD)
         #viewer1=pptkviz(points,colors)#,normals)
@@ -356,12 +356,12 @@ def main2(glb_file_path,pointName='5mm_18_34_56',downsample=10,GSDmm2px=5,bool_a
             #o3d.io.write_point_cloud(glb_file_path+pointName+"aligned.pcd",pcd_t)
             df=np.hstack([np.array(pcd_t.points),np.asarray(pcd_t.colors)])
             df=pd.DataFrame(df)
-            df.to_csv(glb_file_path+pointName+"aligned.csv",index=False,header=False)
-            print('[Saved]',glb_file_path+pointName+"aligned.csv")
+            df.to_csv(las_file_path+pointName+"aligned.csv",index=False,header=False)
+            print('[Saved]',las_file_path+pointName+"aligned.csv")
 
     if b=='server':
 
-        pc=pd.read_csv(glb_file_path+pointName+"aligned.csv",index_col=False,header=None)
+        pc=pd.read_csv(las_file_path+pointName+"aligned.csv",index_col=False,header=None)
         pc=np.array(pc)
         print(['CSV pointcloud formate'],pc.shape)
         points=pc[:,0:3]#*-1
@@ -377,32 +377,43 @@ def main2(glb_file_path,pointName='5mm_18_34_56',downsample=10,GSDmm2px=5,bool_a
         grid_RGB,grid_ele,(ele_min,ele_max)=PointCloud2Orthoimage2(np.array(points),np.asarray(colors)*65535,downsample=downsample,GSDmm2px=GSDmm2px)  #PointCloud2Orthoimage(PCD,downsample=0,GSDmm2px=5)
     grid_RGB=(grid_RGB/(2**16-1)*255).astype('uint8')
     # Output DEM as 8-bit grayscale
-    # grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
+    grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
     
     # Output DEM as 16-bit grayscale
-    grid_map_16 = ((grid_ele-ele_min)/(ele_max-ele_min)*(2**16-1)).astype('uint16')
-    grid_map_16 = cv.medianBlur(grid_map_16, 5) # Apply median blur 5x5 to reduce noise in DEM
+    # grid_map_16 = ((grid_ele-ele_min)/(ele_max-ele_min)*(2**16-1)).astype('uint16')
+    # grid_map_16 = cv.medianBlur(grid_map_16, 5) # Apply median blur 5x5 to reduce noise in DEM
     try:
-        return grid_RGB,grid_ele,grid_map_16,(ele_min,ele_max),GSDmm2px
+        # return grid_RGB, grid_ele, grid_map_16, (ele_min, ele_max), GSDmm2px
+        return grid_RGB, grid_ele, grid_map, (ele_min, ele_max), GSDmm2px
     finally:
-        demo_dir = os.path.join(glb_file_path, 'Demo', pointName)
-        newdir(demo_dir)
+        # Use output_dir if provided, else default to Demo/pointName next to the .las file
+        if output_dir is None:
+            las_dir = os.path.dirname(las_file_path)
+            output_dir = os.path.join(las_dir, 'Demo', pointName)
+        newdir(output_dir)
 
-        cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'RGB.jpg',cv.cvtColor(grid_RGB,cv.COLOR_RGB2BGR),[int(cv.IMWRITE_JPEG_QUALITY),100])
-        # Save DEM as 8-bit JPEG
-        # cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'DEM.jpg',grid_map,[int(cv.IMWRITE_JPEG_QUALITY),100])
+        rgb_path = os.path.join(output_dir, pointName + 'RGB.jpg')
+        dem_path = os.path.join(output_dir, pointName + 'DEM.jpg')
+        # dem_path = os.path.join(output_dir, pointName + 'DEM.png')
+        meta_path = os.path.join(output_dir, pointName + '_meta.json')
 
-        # Save DEM as 16-bit PNG
-        cv.imwrite(glb_file_path+'/Demo/'+pointName+'/'+pointName+'DEM.png',grid_map_16)
-        meta = {"ele_min": float(ele_min), "ele_max": float(ele_max), "dem_bits": 16}
-        with open(os.path.join(demo_dir, pointName + '_meta.json'), 'w') as jf:
-            json.dump(meta, jf)
-
-        print('[Done]',glb_file_path+'/Demo/'+pointName+'/'+pointName+'RGB/DEM.png')
+        if not (os.path.exists(rgb_path) and os.path.exists(dem_path) and os.path.exists(meta_path)):
+            if not os.path.exists(rgb_path):
+                cv.imwrite(rgb_path, cv.cvtColor(grid_RGB, cv.COLOR_RGB2BGR), [int(cv.IMWRITE_JPEG_QUALITY), 100])
+            if not os.path.exists(dem_path):
+                #cv.imwrite(dem_path, grid_map_16)
+                cv.imwrite(dem_path, grid_map)
+            if not os.path.exists(meta_path):
+                meta = {"ele_min": float(ele_min), "ele_max": float(ele_max), "dem_bits": 8}
+                with open(meta_path, 'w') as jf:
+                    json.dump(meta, jf)
+            print('[Done]', rgb_path, dem_path, meta_path)
+        else:
+            print('[Skipped: already exists]', rgb_path, dem_path, meta_path)
         try:
-            del PCD,point_cloud,points,colors,pcd_t,pcd_r
+            del PCD, point_cloud, points, colors, pcd_t, pcd_r
         except:
-            del pc,points,colors
+            del pc, points, colors
         gc.collect()
 
 #-------
@@ -441,6 +452,6 @@ def p2o_main(pointcloud_file_path):
         glb_file_path = pcFolderPath  # screenshot saving path
 
         if b == 'win':
-            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=5, bool_alignOnly=0, b=b, bool_generate=0)
+            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=1, bool_alignOnly=0, b=b, bool_generate=0)
         else:
-            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=5, bool_alignOnly=False, b=b)
+            main2(pointName=fileName, glb_file_path=glb_file_path, GSDmm2px=1, bool_alignOnly=False, b=b)

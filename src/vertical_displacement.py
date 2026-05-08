@@ -17,8 +17,12 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     predicted_array = np.array(predicted_img)
 
     dem_dir = os.path.dirname(dem_path)
-    parent = os.path.dirname(dem_dir)
-    meta_path = os.path.join(parent, os.path.basename(parent) + "_meta.json")
+    vertical_dir = os.path.dirname(dem_dir)  # parent of resized_dem is vertical
+    scan_dir = os.path.dirname(vertical_dir)  # parent of vertical is scan folder
+    scan_name = os.path.basename(scan_dir)
+    meta_path = os.path.join(vertical_dir, scan_name + "_meta.json")
+    if not os.path.exists(meta_path):
+        raise FileNotFoundError(f"Meta file not found at {meta_path}")
     meta = json.load(open(meta_path))
 
     # Load DEM elevation image (grayscale, where the pixel values represent heights)
@@ -26,15 +30,15 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     if dem_bits == 16 or dem_path.lower().endswith('.png'):
         dem_img = Image.open(dem_path)
         dem_array = np.array(dem_img, dtype=np.uint16)
-        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
-        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
-        elevation_data = (dem_array / 65535.0) * (max_elevation - min_elevation) + min_elevation
+        min_elevation = meta["ele_min"] / 10  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 10  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 65535.0) * (max_elevation - min_elevation)
     else:
         dem_img = Image.open(dem_path).convert("L")
         dem_array = np.array(dem_img)
-        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
-        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
-        elevation_data = (dem_array / 255.0) * (max_elevation - min_elevation) + min_elevation
+        min_elevation = meta["ele_min"] / 10  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 10  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 255.0) * (max_elevation - min_elevation)
 
     # Load CSV mask (binary joint mask, 1 = joint, 0 = background)
     csv_data = pd.read_csv(csv_path, header=None).values  # Load as NumPy array
@@ -96,6 +100,12 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
 
 
 def vertical_displacement_looping(seg_folder, dem_folder, csv_folder, output_folder):
+    """
+    seg_folder: folder with segmentation images (e.g., labeled_prediction)
+    dem_folder: folder with DEM tiles (should be resized_dem)
+    csv_folder: folder with MASK.csv files
+    output_folder: where to write VERT_DISP.csv files
+    """
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
