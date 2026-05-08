@@ -30,15 +30,15 @@ def compute_vertical_displacement(predicted_path, dem_path, csv_path, output_csv
     if dem_bits == 16 or dem_path.lower().endswith('.png'):
         dem_img = Image.open(dem_path)
         dem_array = np.array(dem_img, dtype=np.uint16)
-        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
-        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
-        elevation_data = (dem_array / 65535.0) * (max_elevation - min_elevation) + min_elevation
+        min_elevation = meta["ele_min"] / 10  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 10  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 65535.0) * (max_elevation - min_elevation)
     else:
         dem_img = Image.open(dem_path).convert("L")
         dem_array = np.array(dem_img)
-        min_elevation = meta["ele_min"] / 1000  # Minimum real-world elevation (meters)
-        max_elevation = meta["ele_max"] / 1000  # Maximum real-world elevation (meters)
-        elevation_data = (dem_array / 255.0) * (max_elevation - min_elevation) + min_elevation
+        min_elevation = meta["ele_min"] / 10  # Minimum real-world elevation (meters)
+        max_elevation = meta["ele_max"] / 10  # Maximum real-world elevation (meters)
+        elevation_data = (dem_array / 255.0) * (max_elevation - min_elevation)
 
     # Load CSV mask (binary joint mask, 1 = joint, 0 = background)
     csv_data = pd.read_csv(csv_path, header=None).values  # Load as NumPy array

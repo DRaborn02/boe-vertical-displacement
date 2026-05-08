@@ -45,7 +45,8 @@ def run_pipeline(base_path, sidewalk_name, las_file_path, GSDmm2px, result_type)
     labeled_rgb_with_measurements_path = os.path.join(results_path, "labeled_rgb")
     os.makedirs(labeled_rgb_with_measurements_path, exist_ok=True)
 
-    original_dem_path = os.path.join(pipeline_folder, sidewalk_name + "DEM.png")
+    # original_dem_path = os.path.join(pipeline_folder, sidewalk_name + "DEM.png")
+    original_dem_path = os.path.join(pipeline_folder, sidewalk_name + "DEM.jpg")
     original_RGB_path = os.path.join(pipeline_folder, sidewalk_name + "RGB.jpg")
 
     sidewalk_output_folder_rgb = os.path.join(pipeline_folder, "resized_rgb")
@@ -104,7 +105,13 @@ if __name__ == "__main__":
     print(f"Found {len(all_las)} .las files in {base_path}")
 
     for las_file_path in all_las:
+        #check to see if results already exist for this scan, if so, skip
         scan_name = os.path.splitext(os.path.basename(las_file_path))[0]
+        final_scan_folder = os.path.join(base_path, scan_name)
+        if os.path.exists(final_scan_folder):
+            print(f"Results for {scan_name} already exist. Skipping.")
+            continue
+
         print(f"Processing scan: {scan_name}")
         scan_folder = os.path.join(demo_path, scan_name)
         os.makedirs(scan_folder, exist_ok=True)
@@ -112,6 +119,10 @@ if __name__ == "__main__":
         run_pipeline(demo_path, scan_name, las_file_path, GSDmm2px=5, result_type="vertical_results")
         # Second pass: horizontal
         run_pipeline(demo_path, scan_name, las_file_path, GSDmm2px=1, result_type="horizontal_results")
+
+        #move results to base_path/scanName
+        shutil.move(scan_folder, final_scan_folder)
+        print(f"Finished processing {scan_name}. Results moved to {final_scan_folder}")
         
 
 

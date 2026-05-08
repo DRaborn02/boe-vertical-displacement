@@ -377,13 +377,14 @@ def main2(las_file_path, pointName='5mm_18_34_56', output_dir=None, downsample=1
         grid_RGB,grid_ele,(ele_min,ele_max)=PointCloud2Orthoimage2(np.array(points),np.asarray(colors)*65535,downsample=downsample,GSDmm2px=GSDmm2px)  #PointCloud2Orthoimage(PCD,downsample=0,GSDmm2px=5)
     grid_RGB=(grid_RGB/(2**16-1)*255).astype('uint8')
     # Output DEM as 8-bit grayscale
-    # grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
+    grid_map=((grid_ele-ele_min)/(ele_max-ele_min)*255).astype('uint8')
     
     # Output DEM as 16-bit grayscale
-    grid_map_16 = ((grid_ele-ele_min)/(ele_max-ele_min)*(2**16-1)).astype('uint16')
-    grid_map_16 = cv.medianBlur(grid_map_16, 5) # Apply median blur 5x5 to reduce noise in DEM
+    # grid_map_16 = ((grid_ele-ele_min)/(ele_max-ele_min)*(2**16-1)).astype('uint16')
+    # grid_map_16 = cv.medianBlur(grid_map_16, 5) # Apply median blur 5x5 to reduce noise in DEM
     try:
-        return grid_RGB, grid_ele, grid_map_16, (ele_min, ele_max), GSDmm2px
+        # return grid_RGB, grid_ele, grid_map_16, (ele_min, ele_max), GSDmm2px
+        return grid_RGB, grid_ele, grid_map, (ele_min, ele_max), GSDmm2px
     finally:
         # Use output_dir if provided, else default to Demo/pointName next to the .las file
         if output_dir is None:
@@ -392,16 +393,18 @@ def main2(las_file_path, pointName='5mm_18_34_56', output_dir=None, downsample=1
         newdir(output_dir)
 
         rgb_path = os.path.join(output_dir, pointName + 'RGB.jpg')
-        dem_path = os.path.join(output_dir, pointName + 'DEM.png')
+        dem_path = os.path.join(output_dir, pointName + 'DEM.jpg')
+        # dem_path = os.path.join(output_dir, pointName + 'DEM.png')
         meta_path = os.path.join(output_dir, pointName + '_meta.json')
 
         if not (os.path.exists(rgb_path) and os.path.exists(dem_path) and os.path.exists(meta_path)):
             if not os.path.exists(rgb_path):
                 cv.imwrite(rgb_path, cv.cvtColor(grid_RGB, cv.COLOR_RGB2BGR), [int(cv.IMWRITE_JPEG_QUALITY), 100])
             if not os.path.exists(dem_path):
-                cv.imwrite(dem_path, grid_map_16)
+                #cv.imwrite(dem_path, grid_map_16)
+                cv.imwrite(dem_path, grid_map)
             if not os.path.exists(meta_path):
-                meta = {"ele_min": float(ele_min), "ele_max": float(ele_max), "dem_bits": 16}
+                meta = {"ele_min": float(ele_min), "ele_max": float(ele_max), "dem_bits": 8}
                 with open(meta_path, 'w') as jf:
                     json.dump(meta, jf)
             print('[Done]', rgb_path, dem_path, meta_path)
